@@ -1,6 +1,7 @@
 import mysql from "mysql";
 
 
+
 function dbParameters()
 {
     var retval= {
@@ -57,45 +58,48 @@ async function addLocationTimeSeries(row : object,type : string)
 {
 
 	var table : string = type==="d" ? TBL_DEATHS : TBL_CONFIRMED;
-	return new Promise((resolve,reject)=>
-    {
-        var date_pairs=[];
-        var location_pairs=[];
-        var date_regex = /^(0?[1-9]|1[0-2])\/(0?[1-9]|1\d|2\d|3[01])\/\d{2}$/ ; // format is DD/MM/YY
+    var date_pairs=[];
+    var location_pairs=[];
+    var date_regex = /^(0?[1-9]|1[0-2])\/(0?[1-9]|1\d|2\d|3[01])\/\d{2}$/ ; // format is DD/MM/YY
 
-        var location={};
-        var location_columns="";
-        var location_parameters="";
-        var location_parameters_values=[];
-        for(let p in row)
-        {
-            if(date_regex.test(p))
+    var location={ latitude: new String(""),longitude: new String("")};
+    var location_columns="";
+    var location_parameters="";
+    var location_parameters_values: Array<object>=[];
+	let UID : string = "";
+    for(let [p,data]  of Object.entries(row))
+    {
+		if(p==="UID")
+		{
+			UID=data;
+		}
+		if(date_regex.test(p))
             {
-                var dateParts=p.split("/");
-                var dateData=new Date();
+				var dateParts=p.split("/");
+            	var dateData=new Date();
                 let month=parseInt(dateParts[0])-1;
                 let day = parseInt(dateParts[1]);
                 let year=(2000+parseInt(dateParts[2]));
                 dateData.setFullYear(year,month,day);
-                date_pairs.push([dateData,row[p]]);
+                date_pairs.push([dateData,data]);
                 
             }
             else
             {
                 if(p===COL_LATITUDE)
                 {
-                    location.latitude=row[p];
+                    location.latitude=data;
                 }
                 else if(p===COL_LONGITUDE)
                 {
-                    location.longitude=row[p];
+                    location.longitude=data;
                 }
                 else
                 {
-                    location_pairs.push(p,row[p]);
+                    location_pairs.push(p,data);
                     location_columns+=","+p;
                     location_parameters+=", ?";
-                    location_parameters_values.push(row[p]);
+                    location_parameters_values.push(data);
                 }
             }
         }
@@ -104,7 +108,7 @@ async function addLocationTimeSeries(row : object,type : string)
         location_parameters = location_parameters.substr(1)+ ", POINT("+location.latitude+","+location.longitude+")";
         var createLocationSQL = " INSERT into " + TBL_LOCATIONS + " ("+location_columns+")" + " VALUES ("+location_parameters + ");";
         
-        var insert_parameters=[];
+        var insert_parameters:Array<object>=[];
         let insertSQL="INSERT into " + table + "(UID,location,day,number) VALUES ";
         var first=true;
         for(var dateIdx=0;dateIdx<date_pairs.length;dateIdx++)
@@ -117,13 +121,13 @@ async function addLocationTimeSeries(row : object,type : string)
                     insertSQL += ",";
                 }
                 insertSQL += " (intUID(),?,?,?) ";
-                insert_parameters.push(row.UID,cur_date[0],cur_date[1]);
+                insert_parameters.push(UID as String,cur_date[0],cur_date[1]);
                 first=false;
             }
         }
         var combinedQuery="";
-        var full_parameters=[];
-        console.log(row['Combined_Key']);
+        let full_parameters : Array<object>=[];
+        //console.log(row.get('Combined_Key'));
         if(type==='d')
         {
             var combinedQuery=createLocationSQL;   
@@ -136,11 +140,10 @@ async function addLocationTimeSeries(row : object,type : string)
         }
         if(combinedQuery==="")
         {
-            resolve("No updates");
             return;
         }
-        promiseQuery(combinedQuery,full_parameters).then((result)=>{;resolve(result);});
-    });
+        await promiseQuery(combinedQuery,full_parameters);
+ 
 }
 
 export async function processTimeSeries(data : Array<object>,type : string)
@@ -170,9 +173,3 @@ export function end()
 {
 	dbConnection.end();
 }
-module.exports={
-  dbConnection : dbConnection,
-  processTimeSeries:processTimeSeries,
-  updateDeltas: updateDeltas,
-  end: end
-};
