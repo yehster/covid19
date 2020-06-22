@@ -36,7 +36,6 @@ async function refreshData()
 	await covidDB.resetData();
 	await load_us_deaths();
 	await load_us_confirmed();
-	await covidDB.updateDeltas();
 	covidDB.end();
 }
 

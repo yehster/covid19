@@ -24,16 +24,26 @@ const COL_LONGITUDE : string ="Long_";
 
 const ER_NO_SUCH_TABLE="ER_NO_SUCH_TABLE";
 
+async function truncateTables(pattern : string)
+{
+	const getTables = " SHOW TABLES like '"+ pattern + "%'";
+	const tables = await promiseQuery(getTables,[]);
+	for(let tblIdx=0;tblIdx< tables.length;tblIdx++)
+	{
+		let curTable = tables[tblIdx];
+		
+		await promiseQuery("DELETE FROM  `" +Object.values(curTable)[0] ,[]); 
+	}
+	
+}
 export async function resetData()
 {
-	const truncateStatement=" DELETE FROM " + TBL_CONFIRMED + ";"
-	+ " DELETE FROM " + TBL_DEATHS +";"
-	+ " DELETE FROM " + TBL_CONFIRMED + "_DELTA" +";"
-	+ " DELETE FROM " + TBL_DEATHS + "_DELTA" +";"
-	+ " DELETE FROM " + TBL_LOCATIONS  +";";
+	
+	await truncateTables(TBL_CONFIRMED);
+	await truncateTables(TBL_DEATHS);
+	const truncateStatement=" DELETE FROM " + TBL_LOCATIONS  +";";
 	const outcome :Array<object> =  await promiseQuery(truncateStatement,[]);
 	return outcome;
-;
 }
 
 function promiseQuery(sql : string ,parameters : Array<object>)
