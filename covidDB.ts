@@ -210,7 +210,7 @@ export async function table_delta(tableName : string)
 	await promiseQuery(insertQuery,[]);
 	
 }
-export async function verifySeriesTable(tableName : String, floatingPoint : boolean = false, drop : boolean = false)
+export async function verifySeriesTable(tableName : String, floatingPoint : boolean = false, drop : boolean = false, state=false)
 {
 
 	// Allow floating point for moving averages tables
@@ -228,6 +228,8 @@ export async function verifySeriesTable(tableName : String, floatingPoint : bool
 	}
 	let showTable : string = "SHOW TABLES  LIKE ?";
 	const tableCheck = await promiseQuery(showTable,[tableName]);
+	let foreign_table : string = state ? "state_codes" : "locations";
+	let foreign_column : string = state ? "UID" : "UID";
 	console.log(tableCheck);
 	if((tableCheck.length===0) || drop)
 	{
@@ -239,7 +241,7 @@ export async function verifySeriesTable(tableName : String, floatingPoint : bool
 		 +" NOT NULL, "
 		+" PRIMARY KEY (`UID`) USING BTREE, "
 		+" UNIQUE INDEX `location_day` (`location`, `day`) USING BTREE, "
-		+" CONSTRAINT `"+tableName+"_ibfk_1` FOREIGN KEY (`location`) REFERENCES `locations` (`UID`) ON UPDATE RESTRICT ON DELETE RESTRICT "
+		+" CONSTRAINT `"+tableName+"_ibfk_1` FOREIGN KEY (`location`) REFERENCES `"+foreign_table+"` (`"+foreign_column+"`) ON UPDATE RESTRICT ON DELETE RESTRICT "
 		+ ")"; // Close CREATE TABLE
 
 		await promiseQuery(createTable,[]);
@@ -248,7 +250,82 @@ export async function verifySeriesTable(tableName : String, floatingPoint : bool
 	
 }
 
+interface series_data
+{
+	day : string;
+	location : string;
+	number : number;
+}
+export async function cumulative_moving_average(tableName : string)
+{
+	let ma_table_name : string= tableName + "_cma";
+	await verifySeriesTable(ma_table_name,true);
+	const getAllData = " SELECT location, day, number FROM " + tableName + " ORDER BY location, day ";
+	const fullData : Array<series_data> = await promiseQuery(getAllData,[]) as Array<series_data> ;
+	let curLocation : string = "";
+	let curCount=0;
+	let curTotal=0;
+	let newData : Array<series_data> = new Array<series_data>();
+	for(let rowIdx : number = 0; rowIdx<fullData.length;rowIdx++)
+	{
+		let curRow = fullData[rowIdx];
+		if(curLocation!=curRow.location)
+		{
+			curCount=0;
+			curLocation=curRow.location;
+			curTotal=0;
+		}
+		curCount++;
+		curTotal+=curRow.number;
+		
+		newData.push({
+				day: curRow.day
+				,location : curRow.location
+				,number : (curTotal / curCount) 
+			});
+	}
+	var insertParameters : Array<object> = new Array<object>();
+	let insertQuery = " INSERT INTO " + ma_table_name + " VALUES ";
+	for(var dataIdx=0;dataIdx< newData.length;dataIdx++)
+	{
+		let curData : series_data = newData[dataIdx];
+		if(dataIdx>0)
+		{
+			insertQuery += ",";
+		}
+		insertQuery += "(intUID(),?,?,?)";
+		insertParameters.push(curData.location as String ,curData.day as String,curData.number as Number);
+	
+	}
+	await promiseQuery(insertQuery,insertParameters);
+}
+
+export async function generate_state_codes()
+{
+	let filter = " WHERE NOT ISNULL(state_code) AND state_code NOT LIKE '9_' AND state_code NOT LIKE '8_'";
+	let generateStateCodes = " SELECT uid,Province_State,CONVERT(IF(LENGTH(locations.FIPS)=7,SUBSTRING(FIPS,1,2),IF(LENGTH(locations.FIPS)=6,SUBSTRING(FIPS,1,1),NULL)),INTEGER) AS state_code FROM locations ";
+	let insert_state_codes = " INSERT into state_codes SELECT state_code as uid, Province_state as name FROM ("+generateStateCodes+") as codes " + filter + " GROUP BY state_code";
+	let insert_location_states = " INSERT INTO location_states select uid,state_code from ("+generateStateCodes+") as codes " + filter;
+	await promiseQuery("DELETE FROM location_states",[]);
+	await promiseQuery("DELETE FROM state_codes",[]);
+	await promiseQuery(insert_state_codes,[]);
+	await promiseQuery(insert_location_states,[]);
+	
+}
+
+export async function aggregate_states(tableName : string)
+{
+	let aggregateName : string = tableName + "_states";
+	await verifySeriesTable(aggregateName,false,true,true);
+	var selectAggregate = " SELECT intUID(),sc.state as location, day, sum(number) as number FROM " + tableName + " as t0 JOIN location_states as sc on t0.location=sc.location GROUP BY sc.state, t0.day";
+	var insertQuery = " INSERT INTO " + aggregateName + selectAggregate;
+	await promiseQuery(insertQuery,[]);  
+}
+
 var dbConnection=mysql.createConnection(dbParameters());
+
+
+
 
 export function end()
 {
