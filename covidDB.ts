@@ -22,6 +22,9 @@ const TBL_CONFIRMED : string ='confirmed';
 const COL_LATITUDE : string ="Lat";
 const COL_LONGITUDE : string ="Long_";
 
+const TBL_LOCATION_STATES : string ='location_states';
+const TBL_STATE_CODES : string ='state_codes';
+
 const ER_NO_SUCH_TABLE="ER_NO_SUCH_TABLE";
 
 async function truncateTables(pattern : string)
@@ -41,7 +44,10 @@ export async function resetData()
 	
 	await truncateTables(TBL_CONFIRMED);
 	await truncateTables(TBL_DEATHS);
-	const truncateStatement=" DELETE FROM " + TBL_LOCATIONS  +";";
+	const truncateStatement=" DELETE FROM " + TBL_LOCATION_STATES  +";"	
+	 + " DELETE FROM " + TBL_STATE_CODES  +";"
+	 + " DELETE FROM " + TBL_LOCATIONS  +";";
+	console.log(truncateStatement);
 	const outcome :Array<object> =  await promiseQuery(truncateStatement,[]);
 	return outcome;
 }
@@ -136,9 +142,9 @@ async function addLocationTimeSeries(row : object,type : string)
 		}
 		var combinedQuery="";
 		let full_parameters : Array<object>=[];
-		console.log(UID);
 		if(type==='d')
 		{
+			
 			var combinedQuery=createLocationSQL;   
 			full_parameters=location_parameters_values;
 		}
@@ -215,6 +221,14 @@ export async function verifySeriesTable(tableName : String, floatingPoint : bool
 
 	// Allow floating point for moving averages tables
 	
+	if(tableName.indexOf("_ma_")>0 || tableName.indexOf("_cma")>0)
+	{
+		floatingPoint=true;
+	}
+	if(tableName.indexOf("_states")>0)
+	{
+		state=true;
+	}
 	if(drop)
 	{
 		try
