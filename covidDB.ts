@@ -423,10 +423,40 @@ export async function get_location_info(location:number)
 	console.log(retVal);
 	return retVal;
 }
+
+export async function get_populous_counties(state : number,count : number)
+{
+	let query = " SELECT UID,Combined_Key from locations as l JOIN location_states as ls on ls.location=l.UID WHERE ls.state=? ORDER by l.population DESC LIMIT ?;";
+	let result = await promiseQuery(query,[state as Number,count as Number]);
+	
+	return result; 
+}
 var dbConnection=mysql.createConnection(dbParameters());
 
+export async function get_states()
+{
+	let query = " SELECT UID, name FROM state_codes";
+	let result = await promiseQuery(query,[]);
+	return result;
+}
 
 
+export async function new_york_adjustment()
+{
+	// 5 boroughs of NYC are aggreated, so update the locations table accordingly.
+	let ny_boroughs : Array<Number> = [84036047,84036081,84036103,84036005];
+	let queryZeroPop = " UPDATE " +TBL_LOCATIONS + " SET population=0 WHERE UID in (";
+	for(let idx=0;idx<ny_boroughs.length;idx++)
+	{
+		if(idx>0)
+		{
+			queryZeroPop += ",";
+		}
+		queryZeroPop +="?";
+	}
+	queryZeroPop += ")";
+	await promiseQuery(queryZeroPop,ny_boroughs);
+}
 
 export function end()
 {
