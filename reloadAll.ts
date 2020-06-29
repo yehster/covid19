@@ -5,7 +5,9 @@ async function main()
 {
 	await processCSV.refreshData()
 	await covidDB.generate_state_codes();
+	console.log("state codes");
 	await covidDB.aggregate_states("confirmed");
+	console.log("aggregate");
 	await covidDB.aggregate_states("deaths");	
 	await covidDB.table_delta("confirmed");
 	await covidDB.table_delta("deaths");

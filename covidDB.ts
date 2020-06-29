@@ -1,6 +1,9 @@
 import mysql from "mysql";
 
-
+export enum locationType
+{
+	state,county
+}
 
 function dbParameters()
 {
@@ -56,6 +59,7 @@ function promiseQuery(sql : string ,parameters : Array<object>)
 {
 	return new Promise<Array<object>>((resolve,reject)=>
 	{
+		console.log(new Date());
 		dbConnection.query(sql,parameters,(err,result)=>
 		{
 			if(err)
@@ -336,6 +340,89 @@ export async function aggregate_states(tableName : string)
 	await promiseQuery(insertQuery,[]);  
 }
 
+
+export async function get_trajectory(location : number,type : string = "confirmed")
+{
+	const totalTable : string = "confirmed";
+	const deltaTable : string = "confirmed_delta_ma_7";
+	let sql : string = " SELECT total.number as x,new.number as y FROM " + totalTable + " as total "
+		+ " JOIN " + deltaTable + " as new ON new.day = total.day and new.location = total.location "
+		+ " WHERE total.location= ? ";
+	let data = await promiseQuery(sql,[location as Number]);
+	return JSON.stringify(data);
+}
+
+function UIDtoType(location : number)
+{
+	return (location >=1 && location <=56) ? locationType.state : locationType.county;
+	
+}
+interface tableset
+{
+	location : { location_table : string , population_table: string, display_field : string}
+	,	
+	data: {
+		confirmed : string
+		,deaths : string
+		,confirmed_delta : string
+		,deaths_delta : string
+		,confirmed_delta_ma : string
+		,deaths_delta_ma : string
+	}
+}
+const tableLists : Array<tableset> = new Array<tableset>();
+tableLists[locationType.state]={
+	location : { location_table : 'state_codes', population_table : 'state_populations',display_field : 'name'}
+	,	
+	data: {
+		confirmed : "confirmed_states"
+		,deaths : "deaths_states"
+		,confirmed_delta : "confirmed_states_delta"
+		,deaths_delta : "deaths_states_delta"
+		,confirmed_delta_ma : "confirmed_states_delta_ma_7"
+		,deaths_delta_ma : "deaths_states_delta_ma_7"
+	}
+};
+tableLists[locationType.county]={
+	location : { location_table : 'locations',population_table : 'locations', display_field : 'Combined_Key'}
+	,	
+	data :
+	{		
+		confirmed : "confirmed"
+		,deaths : "deaths"
+		,confirmed_delta : "confirmed_delta"
+		,deaths_delta : "deaths_states_delta"
+		,confirmed_delta_ma : "confirmed_delta_ma_7"
+		,deaths_delta_ma : "deaths_delta_ma_7"	}
+};
+
+async function get_location_series(location : number,tables : tableset)
+{
+	let locationSQL = " SELECT loc." + tables.location.display_field + " as display, pop.population FROM " + tables.location.location_table + " as loc "
+	+ " JOIN " + tables.location.population_table + " as pop ON pop.UID=loc.UID "
+	+ " WHERE loc.UID=?;";
+	let locationParameters = [location as Number];
+	let locationInfo = await promiseQuery(locationSQL,locationParameters);
+	let fullSQL="";
+	let fullParameters = [];
+	let tableList=[];
+	for(let [key,value] of Object.entries(tables.data))
+	{
+		fullSQL += " SELECT day,number FROM `" + value + "` WHERE location = ? ;";
+		fullParameters.push(location as Number);
+		tableList.push(key);
+	}
+	console.log(fullSQL);
+	return {location : locationInfo, tables: tableList, results :await promiseQuery(fullSQL,fullParameters) };
+}
+export async function get_location_info(location:number)
+{
+	let location_type= UIDtoType(location);
+	
+	let retVal=await get_location_series(location,tableLists[location_type]);
+	console.log(retVal);
+	return retVal;
+}
 var dbConnection=mysql.createConnection(dbParameters());
 
 
