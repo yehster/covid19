@@ -340,6 +340,23 @@ export async function aggregate_states(tableName : string)
 	await promiseQuery(insertQuery,[]);  
 }
 
+export async function change_pct(table : string,period : number, state : boolean)
+{
+	const result_table = table + "_pct_change_"+period;
+	await verifySeriesTable(result_table,true,true,state);
+	
+	const selectData = " SELECT intUID() as UID , t0.location as location, t0.day, if(t1.number=0,0,(t0.number/t1.number - 1)) as number FROM " + table + " as t0 JOIN " + table + " as t1 ON t0.location=t1.location AND t1.day=DATE_SUB(t0.day,INTERVAL "+period+" DAY)";
+	console.log(selectData);
+	const completeQuery=" INSERT INTO " + result_table + selectData;
+	await promiseQuery(completeQuery,[]);
+	
+}
+
+export async function find_peak(table : string)
+{
+	
+}
+
 
 export async function get_trajectory(location : number,type : string = "confirmed")
 {
@@ -441,6 +458,7 @@ export async function get_states()
 }
 
 
+
 export async function new_york_adjustment()
 {
 	// 5 boroughs of NYC are aggreated, so update the locations table accordingly.
@@ -456,6 +474,16 @@ export async function new_york_adjustment()
 	}
 	queryZeroPop += ")";
 	await promiseQuery(queryZeroPop,ny_boroughs);
+}
+
+export async function get_state_event_pct_changes(table : string, interval : number)
+{
+	const baseQuery = function(days:number) : string
+	{
+		return " SELECT location,day,number FROM " + table + " WHERE day=DATE_SUB((SELECT MAX(DAY) FROM "+table+"),INTERVAL " + days + " DAY);" ;
+	}
+	const fullQuery = baseQuery(0) + baseQuery(interval) + baseQuery(interval*2);
+	return await promiseQuery(fullQuery,[]);
 }
 
 export function end()
