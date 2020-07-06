@@ -19,6 +19,14 @@ async function main()
 	await covidDB.moving_average("confirmed_delta",7);
 	await covidDB.moving_average("deaths_delta",7);		
 
+
+	await covidDB.moving_average("confirmed_states_delta",14);
+	await covidDB.moving_average("deaths_states_delta",14);	
+	await covidDB.moving_average("confirmed_delta",14);
+	await covidDB.moving_average("deaths_delta",14);	
+	
+	await covidDB.change_pct("confirmed_states_delta_ma_14",14,true);
+		
 	covidDB.end();
 }
 
