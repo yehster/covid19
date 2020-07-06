@@ -48,7 +48,6 @@ export async function resetData()
 	await truncateTables(TBL_CONFIRMED);
 	await truncateTables(TBL_DEATHS);
 	const truncateStatement=" DELETE FROM " + TBL_LOCATION_STATES  +";"	
-	 + " DELETE FROM " + TBL_STATE_CODES  +";"
 	 + " DELETE FROM " + TBL_LOCATIONS  +";";
 	console.log(truncateStatement);
 	const outcome :Array<object> =  await promiseQuery(truncateStatement,[]);
