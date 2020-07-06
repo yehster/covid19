@@ -38,7 +38,7 @@ async function truncateTables(pattern : string)
 	{
 		let curTable = tables[tblIdx];
 		
-		await promiseQuery("DELETE FROM  `" +Object.values(curTable)[0] ,[]); 
+		await promiseQuery("DELETE FROM  `" +Object.values(curTable)[0]+"`;" ,[]); 
 	}
 	
 }
