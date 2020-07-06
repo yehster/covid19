@@ -486,6 +486,20 @@ export async function get_state_event_pct_changes(table : string, interval : num
 	return await promiseQuery(fullQuery,[]);
 }
 
+export async function get_county_case_rates()
+{
+	const baseQuery : string = " SELECT location, day, (number/l.population) * 100000 as number  FROM confirmed_delta_ma_7 as t "
+							+" JOIN locations as l on t.location=l.UID WHERE day = (SELECT MAX(day) FROM confirmed_delta_ma_7)";
+	return await promiseQuery(baseQuery,[]);
+}
+
+export async function get_count_case_rates_day(day : string)
+{
+	const baseQuery : string = " SELECT location, day, (number/l.population) * 100000 as number  FROM confirmed_delta_ma_7 as t "
+							+" JOIN locations as l on t.location=l.UID WHERE day = ?";
+	return await promiseQuery(baseQuery,[day as String]);
+	
+}
 export function end()
 {
 	dbConnection.end();
