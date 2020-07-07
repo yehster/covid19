@@ -38,7 +38,7 @@ async function truncateTables(pattern : string)
 	{
 		let curTable = tables[tblIdx];
 		
-		await promiseQuery("DELETE FROM  `" +Object.values(curTable)[0]+"`;" ,[]); 
+		await promiseQuery("DELETE FROM  `" +Object.values(curTable)[0] +"`;" ,[]); 
 	}
 	
 }
@@ -48,6 +48,7 @@ export async function resetData()
 	await truncateTables(TBL_CONFIRMED);
 	await truncateTables(TBL_DEATHS);
 	const truncateStatement=" DELETE FROM " + TBL_LOCATION_STATES  +";"	
+	 + " DELETE FROM " + TBL_STATE_CODES  +";"
 	 + " DELETE FROM " + TBL_LOCATIONS  +";";
 	console.log(truncateStatement);
 	const outcome :Array<object> =  await promiseQuery(truncateStatement,[]);
@@ -323,11 +324,9 @@ export async function generate_state_codes()
 	let generateStateCodes = " SELECT uid,Province_State,CONVERT(IF(LENGTH(locations.FIPS)=7,SUBSTRING(FIPS,1,2),IF(LENGTH(locations.FIPS)=6,SUBSTRING(FIPS,1,1),NULL)),INTEGER) AS state_code FROM locations ";
 	let insert_state_codes = " INSERT into state_codes SELECT state_code as uid, Province_state as name FROM ("+generateStateCodes+") as codes " + filter + " GROUP BY state_code";
 	let insert_location_states = " INSERT INTO location_states select uid,state_code from ("+generateStateCodes+") as codes " + filter;
-//	await promiseQuery("DELETE FROM state_codes",[]);
-//	await promiseQuery(insert_state_codes,[]);
-
-
 	await promiseQuery("DELETE FROM location_states",[]);
+	await promiseQuery("DELETE FROM state_codes",[]);
+	await promiseQuery(insert_state_codes,[]);
 	await promiseQuery(insert_location_states,[]);
 	
 }

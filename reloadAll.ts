@@ -3,7 +3,8 @@ import * as processCSV from "./processCSVs";
 
 async function main()
 {
-	await processCSV.refreshData()
+	await processCSV.refreshData();
+	await covidDB.generate_state_codes();
 	console.log("state codes");
 	await covidDB.aggregate_states("confirmed");
 	console.log("aggregate");
